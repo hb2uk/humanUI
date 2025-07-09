@@ -23,23 +23,25 @@ humanui/
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm 8+
 - Docker & Docker Compose
 
-### 1. Install Dependencies
+### Option 1: Development Mode
+
+#### 1. Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-### 2. Start Database
+#### 2. Start Database
 
 ```bash
-docker-compose up -d
+docker-compose up -d postgres pgadmin
 ```
 
-### 3. Setup Environment
+#### 3. Setup Environment
 
 Copy the example environment file:
 
@@ -47,19 +49,19 @@ Copy the example environment file:
 cp env.example .env
 ```
 
-### 4. Generate Prisma Client
+#### 4. Generate Prisma Client
 
 ```bash
 pnpm db:generate
 ```
 
-### 5. Push Database Schema
+#### 5. Push Database Schema
 
 ```bash
 pnpm db:push
 ```
 
-### 6. Start Development Servers
+#### 6. Start Development Servers
 
 ```bash
 # Start all apps in development mode
@@ -70,9 +72,47 @@ pnpm --filter @humanui/admin dev
 pnpm --filter @humanui/api dev
 ```
 
+### Option 2: Docker Mode (Database Only)
+
+#### 1. Start Database Services
+
+```bash
+# Start PostgreSQL and pgAdmin
+docker-compose up -d
+```
+
+#### 2. View Logs
+
+```bash
+docker-compose logs -f
+```
+
+#### 3. Stop Services
+
+```bash
+docker-compose down
+```
+
+#### 4. Run Apps Locally
+
+```bash
+# Install dependencies
+pnpm install
+
+# Generate Prisma client
+pnpm db:generate
+
+# Push database schema
+pnpm db:push
+
+# Start development servers
+pnpm dev
+```
+
 ## 📦 Available Scripts
 
 ### Root Level
+
 - `pnpm dev` - Start all apps in development mode
 - `pnpm build` - Build all packages and apps
 - `pnpm lint` - Lint all packages and apps
@@ -81,7 +121,15 @@ pnpm --filter @humanui/api dev
 - `pnpm db:push` - Push database schema
 - `pnpm db:studio` - Open Prisma Studio
 
+### Docker Commands
+
+- `docker-compose up -d` - Start database services
+- `docker-compose down` - Stop database services
+- `docker-compose logs -f` - View database logs
+- `docker-compose restart` - Restart database services
+
 ### Individual Apps
+
 - `pnpm --filter @humanui/admin dev` - Start admin dashboard
 - `pnpm --filter @humanui/api dev` - Start API server
 
@@ -102,18 +150,23 @@ The project uses PostgreSQL with Prisma ORM. The database includes:
 ## 📚 Packages
 
 ### @humanui/db
+
 Database package with Prisma client and schema.
 
-### @humanui/entities  
+### @humanui/entities
+
 Shared entity types and database exports.
 
 ### @humanui/ui
+
 Shared UI components built with React and Tailwind CSS.
 
 ### @humanui/utils
+
 Common utility functions for formatting and validation.
 
 ### @humanui/config
+
 Shared configuration and environment variables.
 
 ## 🛠️ Development
@@ -134,10 +187,11 @@ Shared configuration and environment variables.
 ### API Endpoints
 
 The API server includes:
+
 - `GET /health` - Health check
 - `GET /api/items` - List items
 - `POST /api/items` - Create item
-- `GET /api/users` - List users  
+- `GET /api/users` - List users
 - `POST /api/users` - Create user
 
 ## 🔧 Tech Stack
@@ -152,4 +206,4 @@ The API server includes:
 
 ## 📝 License
 
-MIT 
+MIT

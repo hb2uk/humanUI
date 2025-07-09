@@ -5,6 +5,10 @@ import morgan from 'morgan';
 import { env } from '@humanui/config';
 import { prisma } from '@humanui/db';
 
+// Import routes
+import itemRoutes from './api/item';
+import itemIdRoutes from './api/item/[id]';
+
 const app = express();
 const port = env.API_PORT;
 
@@ -19,29 +23,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Items API
-app.get('/api/items', async (req, res) => {
-  try {
-    const items = await prisma.item.findMany();
-    res.json(items);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch items' });
-  }
-});
+// API Routes
+app.use('/api/items', itemRoutes);
+app.use('/api/items', itemIdRoutes);
 
-app.post('/api/items', async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    const item = await prisma.item.create({
-      data: { name, description },
-    });
-    res.status(201).json(item);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create item' });
-  }
-});
-
-// Users API
+// Users API (legacy - can be moved to separate route file later)
 app.get('/api/users', async (req, res) => {
   try {
     const users = await prisma.user.findMany();

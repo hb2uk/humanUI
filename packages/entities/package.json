@@ -9,7 +9,9 @@
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
   },
   "dependencies": {
-    "@humanui/db": "workspace:*"
+    "@humanui/db": "workspace:*",
+    "@prisma/client": "^5.22.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

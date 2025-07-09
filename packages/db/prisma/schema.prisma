@@ -14,10 +14,33 @@ model Item {
   id          String   @id @default(cuid())
   name        String
   description String?
+  status      ItemStatus @default(DRAFT)
+  priority    Priority   @default(MEDIUM)
+  tags        String[]
+  metadata    Json?
+  tenantId    String?
+  createdBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("items")
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ItemStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 model User {

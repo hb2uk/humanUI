@@ -1,0 +1,102 @@
+### Test HumanUI API Endpoints
+
+### Health Check
+GET http://localhost:3001/health
+
+### List Items (with tenant)
+GET http://localhost:3001/api/items
+X-Tenant-ID: tenant-1
+Accept-Language: en-US
+
+### List Items with pagination
+GET http://localhost:3001/api/items?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+X-Tenant-ID: tenant-1
+
+### List Items with filtering
+GET http://localhost:3001/api/items?status=ACTIVE&priority=HIGH&search=test
+X-Tenant-ID: tenant-1
+
+### Create Item
+POST http://localhost:3001/api/items
+Content-Type: application/json
+X-Tenant-ID: tenant-1
+X-User-ID: user-1
+
+{
+  "name": "Test Item",
+  "description": "This is a test item",
+  "status": "ACTIVE",
+  "priority": "MEDIUM",
+  "tags": ["test", "demo"],
+  "metadata": {
+    "category": "testing",
+    "version": "1.0"
+  }
+}
+
+### Get Item by ID
+GET http://localhost:3001/api/items/{{itemId}}
+X-Tenant-ID: tenant-1
+
+### Update Item
+PUT http://localhost:3001/api/items/{{itemId}}
+Content-Type: application/json
+X-Tenant-ID: tenant-1
+
+{
+  "name": "Updated Test Item",
+  "description": "This is an updated test item",
+  "status": "ACTIVE",
+  "priority": "HIGH",
+  "tags": ["test", "demo", "updated"]
+}
+
+### Patch Item
+PATCH http://localhost:3001/api/items/{{itemId}}
+Content-Type: application/json
+X-Tenant-ID: tenant-1
+
+{
+  "status": "ARCHIVED"
+}
+
+### Delete Item (soft delete)
+DELETE http://localhost:3001/api/items/{{itemId}}
+X-Tenant-ID: tenant-1
+
+### Hard Delete Item
+DELETE http://localhost:3001/api/items/{{itemId}}/hard
+X-Tenant-ID: tenant-1
+
+### Get Item Statistics
+GET http://localhost:3001/api/items/stats
+X-Tenant-ID: tenant-1
+
+### Get Item Tags
+GET http://localhost:3001/api/items/tags
+X-Tenant-ID: tenant-1
+
+### Bulk Operations
+POST http://localhost:3001/api/items/bulk
+Content-Type: application/json
+X-Tenant-ID: tenant-1
+
+{
+  "ids": ["item-1", "item-2", "item-3"],
+  "operation": "updateStatus",
+  "data": {
+    "status": "ARCHIVED"
+  }
+}
+
+### Test with different locale
+GET http://localhost:3001/api/items
+X-Tenant-ID: tenant-1
+Accept-Language: es-ES
+
+### Test without tenant (should fail)
+GET http://localhost:3001/api/items
+
+### Test with invalid tenant
+GET http://localhost:3001/api/items
+X-Tenant-ID: "" 
