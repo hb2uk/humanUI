@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: humanui-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: humanui
+      POSTGRES_PASSWORD: humanui_password
+      POSTGRES_DB: humanui_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - humanui-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: humanui-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@humanui.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - humanui-network
+
+volumes:
+  postgres_data:
+
+networks:
+  humanui-network:
+    driver: bridge 
