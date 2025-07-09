@@ -1,5 +1,30 @@
 import { z } from 'zod';
-import { organizationSchema } from './schema';
+import { OrganizationService } from './service';
+import { 
+  organizationSchema as baseOrganizationSchema, 
+  createOrganizationSchema, 
+  updateOrganizationSchema, 
+  organizationQuerySchema,
+  organizationResponseSchema,
+  organizationsListResponseSchema
+} from './schema';
+
+// Define the EntityFormConfig interface locally to avoid circular dependencies
+interface EntityFormConfig<T = any> {
+  schema: z.ZodSchema<T>;
+  fields: any[];
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+  cancelLabel?: string;
+  layout?: 'single' | 'two-column' | 'three-column';
+  sections?: {
+    title: string;
+    fields: string[];
+    collapsible?: boolean;
+    defaultExpanded?: boolean;
+  }[];
+}
 
 export const organizationTableColumns = [
   { key: 'name', label: 'Name', sortable: true },
@@ -14,106 +39,293 @@ export const organizationTableColumns = [
 
 export const organizationFormFields = [
   {
-    key: 'name',
+    name: 'name',
     label: 'Name',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter organization name',
   },
   {
-    key: 'slug',
+    name: 'slug',
     label: 'Slug',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter organization slug',
   },
   {
-    key: 'description',
+    name: 'description',
     label: 'Description',
-    type: 'textarea',
+    type: 'textarea' as const,
     required: false,
     placeholder: 'Enter description',
   },
   {
-    key: 'logoUrl',
+    name: 'logoUrl',
     label: 'Logo URL',
-    type: 'url',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter logo URL',
   },
   {
-    key: 'website',
+    name: 'website',
     label: 'Website',
-    type: 'url',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter website URL',
   },
   {
-    key: 'email',
+    name: 'email',
     label: 'Email',
-    type: 'email',
+    type: 'email' as const,
     required: false,
     placeholder: 'Enter email address',
   },
   {
-    key: 'phone',
+    name: 'phone',
     label: 'Phone',
-    type: 'tel',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter phone number',
   },
   {
-    key: 'address.street',
+    name: 'address.street',
     label: 'Street Address',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter street address',
   },
   {
-    key: 'address.city',
+    name: 'address.city',
     label: 'City',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter city',
   },
   {
-    key: 'address.state',
+    name: 'address.state',
     label: 'State/Province',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter state or province',
   },
   {
-    key: 'address.postalCode',
+    name: 'address.postalCode',
     label: 'Postal Code',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter postal code',
   },
   {
-    key: 'address.country',
+    name: 'address.country',
     label: 'Country',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter country',
   },
   {
-    key: 'isActive',
+    name: 'isActive',
     label: 'Active',
-    type: 'checkbox',
+    type: 'checkbox' as const,
     required: false,
-    default: true,
+    defaultValue: true,
   },
   {
-    key: 'isPublic',
+    name: 'isPublic',
     label: 'Public',
-    type: 'checkbox',
+    type: 'checkbox' as const,
     required: false,
-    default: false,
+    defaultValue: false,
   },
 ];
 
-export const organizationFormSchema = organizationSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const organizationFormSchema = createOrganizationSchema;
+
+export const organizationFormConfig: EntityFormConfig = {
+  schema: organizationFormSchema,
+  fields: organizationFormFields,
+  title: 'Organization',
+  description: 'Create or edit an organization',
+  submitLabel: 'Save Organization',
+  cancelLabel: 'Cancel',
+  layout: 'two-column',
+  sections: [
+    {
+      title: 'Basic Information',
+      fields: ['name', 'slug', 'description', 'logoUrl', 'website'],
+      defaultExpanded: true,
+    },
+    {
+      title: 'Contact Information',
+      fields: ['email', 'phone'],
+      defaultExpanded: true,
+    },
+    {
+      title: 'Address',
+      fields: ['address.street', 'address.city', 'address.state', 'address.postalCode', 'address.country'],
+      defaultExpanded: false,
+    },
+    {
+      title: 'Settings',
+      fields: ['isActive', 'isPublic'],
+      defaultExpanded: true,
+    },
+  ],
+};
+
+// EntityConfig for API route generator
+export const organizationConfig = {
+  name: 'organization',
+  displayName: 'Organization',
+  description: 'Manage organizations and their configurations',
+  path: '/organizations',
+  service: OrganizationService,
+  schemas: {
+    base: baseOrganizationSchema,
+    create: createOrganizationSchema,
+    update: updateOrganizationSchema,
+    query: organizationQuerySchema,
+    response: organizationResponseSchema,
+    listResponse: organizationsListResponseSchema,
+  },
+  features: {
+    create: true,
+    read: true,
+    update: true,
+    delete: true,
+    list: true,
+    search: true,
+    bulkOperations: true,
+    import: true,
+    export: true,
+    stats: true,
+  },
+  permissions: {
+    create: ['organization:create'],
+    read: ['organization:read'],
+    update: ['organization:update'],
+    delete: ['organization:delete'],
+    list: ['organization:list'],
+    search: ['organization:search'],
+    bulkOperations: ['organization:bulk'],
+    import: ['organization:import'],
+    export: ['organization:export'],
+    stats: ['organization:stats'],
+  },
+  validation: {
+    uniqueFields: ['slug'],
+    requiredFields: ['name', 'slug'],
+    businessRules: [
+      'Organization slugs must be unique globally',
+      'Active organizations cannot be deleted if they have active stores',
+      'Public organizations are visible to all users',
+    ],
+  },
+  api: {
+    endpoints: {
+      create: {
+        method: 'POST',
+        path: '/',
+        description: 'Create a new organization',
+      },
+      findById: {
+        method: 'GET',
+        path: '/:id',
+        description: 'Get organization by ID',
+      },
+      list: {
+        method: 'GET',
+        path: '/',
+        description: 'List organizations with filtering and pagination',
+      },
+      update: {
+        method: 'PUT',
+        path: '/:id',
+        description: 'Update an organization',
+      },
+      delete: {
+        method: 'DELETE',
+        path: '/:id',
+        description: 'Delete an organization (soft delete)',
+      },
+      search: {
+        method: 'GET',
+        path: '/search',
+        description: 'Search organizations',
+      },
+      bulkOperation: {
+        method: 'POST',
+        path: '/bulk',
+        description: 'Perform bulk operations on organizations',
+      },
+      import: {
+        method: 'POST',
+        path: '/import',
+        description: 'Import organizations from external data',
+      },
+      export: {
+        method: 'GET',
+        path: '/export',
+        description: 'Export organizations to external format',
+      },
+      stats: {
+        method: 'GET',
+        path: '/stats',
+        description: 'Get organization statistics',
+      },
+    },
+    examples: {
+      create: {
+        name: 'Acme Corporation',
+        slug: 'acme-corp',
+        description: 'A leading technology company',
+        website: 'https://acme.com',
+        email: 'contact@acme.com',
+        phone: '+1-555-0123',
+        isActive: true,
+        isPublic: true,
+      },
+      update: {
+        name: 'Acme Corporation Inc.',
+        description: 'Updated description for Acme Corporation',
+        isPublic: false,
+      },
+      query: {
+        search: 'acme',
+        isActive: true,
+        isPublic: true,
+        page: 1,
+        limit: 20,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      },
+    },
+  },
+  ui: {
+    display: {
+      listFields: ['name', 'slug', 'isActive', 'isPublic', 'email', 'website'],
+      detailFields: ['name', 'slug', 'description', 'logoUrl', 'website', 'email', 'phone', 'address', 'isActive', 'isPublic'],
+      searchFields: ['name', 'slug', 'description'],
+      sortFields: ['name', 'slug', 'createdAt', 'updatedAt'],
+      filterFields: ['isActive', 'isPublic'],
+    },
+    forms: {
+      create: {
+        fields: [
+          { name: 'name', type: 'text', required: true, label: 'Name' },
+          { name: 'slug', type: 'text', required: true, label: 'Slug' },
+          { name: 'isActive', type: 'checkbox', required: false, label: 'Active' },
+        ],
+      },
+      update: {
+        fields: [
+          { name: 'name', type: 'text', required: false, label: 'Name' },
+          { name: 'description', type: 'textarea', required: false, label: 'Description' },
+          { name: 'isActive', type: 'checkbox', required: false, label: 'Active' },
+        ],
+      },
+    },
+  },
+};
 
 export type OrganizationTableColumn = typeof organizationTableColumns[number];
 export type OrganizationFormField = typeof organizationFormFields[number]; 

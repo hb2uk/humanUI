@@ -1,5 +1,30 @@
 import { z } from 'zod';
-import { storeSchema } from './schema';
+import { StoreService } from './service';
+import { 
+  storeSchema as baseStoreSchema, 
+  createStoreSchema, 
+  updateStoreSchema, 
+  storeQuerySchema,
+  storeResponseSchema,
+  storesListResponseSchema
+} from './schema';
+
+// Define the EntityFormConfig interface locally to avoid circular dependencies
+interface EntityFormConfig<T = any> {
+  schema: z.ZodSchema<T>;
+  fields: any[];
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+  cancelLabel?: string;
+  layout?: 'single' | 'two-column' | 'three-column';
+  sections?: {
+    title: string;
+    fields: string[];
+    collapsible?: boolean;
+    defaultExpanded?: boolean;
+  }[];
+}
 
 export const storeTableColumns = [
   { key: 'name', label: 'Name', sortable: true },
@@ -15,79 +40,79 @@ export const storeTableColumns = [
 
 export const storeFormFields = [
   {
-    key: 'name',
+    name: 'name',
     label: 'Name',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter store name',
   },
   {
-    key: 'displayName',
+    name: 'displayName',
     label: 'Display Name',
-    type: 'text',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter display name',
   },
   {
-    key: 'description',
+    name: 'description',
     label: 'Description',
-    type: 'textarea',
+    type: 'textarea' as const,
     required: false,
     placeholder: 'Enter description',
   },
   {
-    key: 'address.street',
+    name: 'address.street',
     label: 'Street Address',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter street address',
   },
   {
-    key: 'address.city',
+    name: 'address.city',
     label: 'City',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter city',
   },
   {
-    key: 'address.state',
+    name: 'address.state',
     label: 'State/Province',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter state or province',
   },
   {
-    key: 'address.postalCode',
+    name: 'address.postalCode',
     label: 'Postal Code',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter postal code',
   },
   {
-    key: 'address.country',
+    name: 'address.country',
     label: 'Country',
-    type: 'text',
+    type: 'text' as const,
     required: true,
     placeholder: 'Enter country',
   },
   {
-    key: 'phone',
+    name: 'phone',
     label: 'Phone',
-    type: 'tel',
+    type: 'text' as const,
     required: false,
     placeholder: 'Enter phone number',
   },
   {
-    key: 'email',
+    name: 'email',
     label: 'Email',
-    type: 'email',
+    type: 'email' as const,
     required: false,
     placeholder: 'Enter email address',
   },
   {
-    key: 'timezone',
+    name: 'timezone',
     label: 'Timezone',
-    type: 'select',
+    type: 'select' as const,
     required: false,
     placeholder: 'Select timezone',
     options: [
@@ -103,16 +128,16 @@ export const storeFormFields = [
     ],
   },
   {
-    key: 'isActive',
+    name: 'isActive',
     label: 'Active',
-    type: 'checkbox',
+    type: 'checkbox' as const,
     required: false,
-    default: true,
+    defaultValue: true,
   },
   {
-    key: 'storeType',
+    name: 'storeType',
     label: 'Store Type',
-    type: 'select',
+    type: 'select' as const,
     required: false,
     placeholder: 'Select store type',
     options: [
@@ -125,16 +150,210 @@ export const storeFormFields = [
     ],
   },
   {
-    key: 'organizationId',
+    name: 'organizationId',
     label: 'Organization',
-    type: 'select',
+    type: 'select' as const,
     required: true,
     placeholder: 'Select organization',
     options: [], // Will be populated dynamically
   },
 ];
 
-export const storeFormSchema = storeSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const storeFormSchema = createStoreSchema;
+
+export const storeFormConfig: EntityFormConfig = {
+  schema: storeFormSchema,
+  fields: storeFormFields,
+  title: 'Store',
+  description: 'Create or edit a store',
+  submitLabel: 'Save Store',
+  cancelLabel: 'Cancel',
+  layout: 'two-column',
+  sections: [
+    {
+      title: 'Basic Information',
+      fields: ['name', 'displayName', 'description'],
+      defaultExpanded: true,
+    },
+    {
+      title: 'Address',
+      fields: ['address.street', 'address.city', 'address.state', 'address.postalCode', 'address.country'],
+      defaultExpanded: true,
+    },
+    {
+      title: 'Contact & Settings',
+      fields: ['phone', 'email', 'timezone', 'isActive', 'storeType'],
+      defaultExpanded: true,
+    },
+    {
+      title: 'Organization',
+      fields: ['organizationId'],
+      defaultExpanded: true,
+    },
+  ],
+};
+
+// EntityConfig for API route generator
+export const storeConfig = {
+  name: 'store',
+  displayName: 'Store',
+  description: 'Manage retail stores and their configurations',
+  path: '/stores',
+  service: StoreService,
+  schemas: {
+    base: baseStoreSchema,
+    create: createStoreSchema,
+    update: updateStoreSchema,
+    query: storeQuerySchema,
+    response: storeResponseSchema,
+    listResponse: storesListResponseSchema,
+  },
+  features: {
+    create: true,
+    read: true,
+    update: true,
+    delete: true,
+    list: true,
+    search: true,
+    bulkOperations: true,
+    import: true,
+    export: true,
+    stats: true,
+  },
+  permissions: {
+    create: ['store:create'],
+    read: ['store:read'],
+    update: ['store:update'],
+    delete: ['store:delete'],
+    list: ['store:list'],
+    search: ['store:search'],
+    bulkOperations: ['store:bulk'],
+    import: ['store:import'],
+    export: ['store:export'],
+    stats: ['store:stats'],
+  },
+  validation: {
+    uniqueFields: ['name', 'organizationId'],
+    requiredFields: ['name', 'address', 'organizationId'],
+    businessRules: [
+      'Store names must be unique within an organization',
+      'Address must be complete (street, city, state, postal code, country)',
+      'Active stores cannot be deleted if they have active inventory',
+    ],
+  },
+  api: {
+    endpoints: {
+      create: {
+        method: 'POST',
+        path: '/',
+        description: 'Create a new store',
+      },
+      findById: {
+        method: 'GET',
+        path: '/:id',
+        description: 'Get store by ID',
+      },
+      list: {
+        method: 'GET',
+        path: '/',
+        description: 'List stores with filtering and pagination',
+      },
+      update: {
+        method: 'PUT',
+        path: '/:id',
+        description: 'Update a store',
+      },
+      delete: {
+        method: 'DELETE',
+        path: '/:id',
+        description: 'Delete a store (soft delete)',
+      },
+      search: {
+        method: 'GET',
+        path: '/search',
+        description: 'Search stores',
+      },
+      bulkOperation: {
+        method: 'POST',
+        path: '/bulk',
+        description: 'Perform bulk operations on stores',
+      },
+      import: {
+        method: 'POST',
+        path: '/import',
+        description: 'Import stores from external data',
+      },
+      export: {
+        method: 'GET',
+        path: '/export',
+        description: 'Export stores to external format',
+      },
+      stats: {
+        method: 'GET',
+        path: '/stats',
+        description: 'Get store statistics',
+      },
+    },
+    examples: {
+      create: {
+        name: 'Main Store',
+        displayName: 'Downtown Main Store',
+        address: {
+          street: '123 Main St',
+          city: 'Bangkok',
+          state: 'Bangkok',
+          postalCode: '10400',
+          country: 'Thailand',
+        },
+        phone: '+66-2-123-4567',
+        email: 'main@store.com',
+        timezone: 'Asia/Bangkok',
+        isActive: true,
+        storeType: 'RETAIL',
+        organizationId: 'org_123',
+      },
+      update: {
+        displayName: 'Updated Store Name',
+        phone: '+66-2-123-4568',
+        isActive: false,
+      },
+      query: {
+        search: 'main',
+        isActive: true,
+        storeType: 'RETAIL',
+        page: 1,
+        limit: 20,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      },
+    },
+  },
+  ui: {
+    display: {
+      listFields: ['name', 'displayName', 'isActive', 'storeType', 'address', 'phone'],
+      detailFields: ['name', 'displayName', 'description', 'address', 'phone', 'email', 'timezone', 'isActive', 'storeType'],
+      searchFields: ['name', 'displayName', 'description'],
+      sortFields: ['name', 'displayName', 'createdAt', 'updatedAt'],
+      filterFields: ['isActive', 'storeType', 'organizationId'],
+    },
+    forms: {
+      create: {
+        fields: [
+          { name: 'name', type: 'text', required: true, label: 'Name' },
+          { name: 'address.street', type: 'text', required: true, label: 'Street Address' },
+          { name: 'isActive', type: 'checkbox', required: false, label: 'Active' },
+        ],
+      },
+      update: {
+        fields: [
+          { name: 'displayName', type: 'text', required: false, label: 'Display Name' },
+          { name: 'phone', type: 'text', required: false, label: 'Phone' },
+          { name: 'isActive', type: 'checkbox', required: false, label: 'Active' },
+        ],
+      },
+    },
+  },
+};
 
 export type StoreTableColumn = typeof storeTableColumns[number];
 export type StoreFormField = typeof storeFormFields[number]; 

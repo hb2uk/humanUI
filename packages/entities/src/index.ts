@@ -7,10 +7,15 @@ export * from './itemAttribute';
 
 // Export entity configurations
 export { itemConfig } from './item/config';
+export { itemFormConfig } from './item/config';
 export { categoryConfig } from './category/config';
+export { categoryFormConfig } from './category/config';
 export { storeConfig } from './store/config';
+export { storeFormConfig } from './store/config';
 export { organizationConfig } from './organization/config';
+export { organizationFormConfig } from './organization/config';
 export { itemAttributeConfig } from './itemAttribute/config';
+export { itemAttributeFormConfig } from './itemAttribute/config';
 
 // Export types
 export interface EntityConfig {
