@@ -10,23 +10,197 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Item {
+model Organization {
   id          String   @id @default(cuid())
   name        String
+  slug        String
   description String?
-  status      ItemStatus @default(DRAFT)
-  priority    Priority   @default(MEDIUM)
-  tags        String[]
-  metadata    Json?
+  logoUrl     String?
+  website     String?
+  email       String?
+  phone       String?
+  address     Json?
+  settings    Json     @default("{}")
+  isActive    Boolean  @default(true)
+  isPublic    Boolean  @default(false)
   tenantId    String?
   createdBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Relations
+  stores         Store[]
+  users          User[]
+  categories     Category[]
+  items          Item[]
+  itemAttributes ItemAttribute[]
+
+  @@map("organizations")
+  @@index([tenantId])
+  @@index([slug])
+  @@index([isActive])
+  @@index([createdAt])
+  @@unique([slug, tenantId])
+}
+
+model Store {
+  id             String   @id @default(cuid())
+  name           String
+  displayName    String?
+  description    String?
+  address        Json
+  phone          String?
+  email          String?
+  timezone       String?
+  isActive       Boolean  @default(true)
+  storeType      String?
+  operatingHours Json?
+  organizationId String
+  tenantId       String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categories     Category[]
+  items          Item[]
+
+  @@map("stores")
+  @@index([tenantId])
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model Category {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  slug           String
+  imageUrl       String?
+  isActive       Boolean  @default(true)
+  isPublished    Boolean  @default(false)
+  parentId       String?
+  sortOrder      Int      @default(0)
+  organizationId String
+  storeId        String
+  tenantId       String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store          Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent         Category?    @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       Category[]   @relation("CategoryHierarchy")
+  items          Item[]
+
+  @@map("categories")
+  @@index([tenantId])
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([parentId])
+  @@index([isActive])
+  @@index([isPublished])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@unique([slug, storeId, tenantId])
+}
+
+model Item {
+  id                String   @id @default(cuid())
+  categoryType      String
+  sku               String
+  name              String
+  description       String?
+  hasVariants       Boolean  @default(false)
+  variantGroups     Json?
+  fulfillmentMethod String   @default("pickup")
+  fulfillmentConfig Json     @default("{}")
+  regulatoryFlags   Json     @default("{}")
+  complianceRequired Boolean @default(false)
+  basePrice         Float
+  currency          String   @default("THB")
+  pricingRules      Json     @default("{}")
+  status            ItemStatus @default(DRAFT)
+  priority          Priority   @default(MEDIUM)
+  tags              String[]
+  metadata          Json?
+  organizationId    String
+  storeId           String?
+  categoryId        String?
+  tenantId          String?
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store          Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  category       Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   @@map("items")
   @@index([tenantId])
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([categoryId])
+  @@index([categoryType])
+  @@index([sku])
   @@index([status])
+  @@index([basePrice])
   @@index([createdAt])
+  @@unique([sku, organizationId, tenantId])
+}
+
+model ItemAttribute {
+  id             String   @id @default(cuid())
+  name           String
+  displayName    String
+  description    String?
+  attributeType  String
+  dataType       String
+  isRequired     Boolean  @default(false)
+  defaultValue   Json?
+  validationRules Json?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  organizationId String
+  tenantId       String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("item_attributes")
+  @@index([tenantId])
+  @@index([organizationId])
+  @@index([attributeType])
+  @@index([isActive])
+  @@index([isRequired])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@unique([name, organizationId, tenantId])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  organizationId String?
+  tenantId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@map("users")
+  @@index([tenantId])
+  @@index([organizationId])
 }
 
 enum ItemStatus {
@@ -41,14 +215,4 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
-}
-
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
 } 

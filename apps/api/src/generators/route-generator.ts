@@ -563,7 +563,7 @@ export class RouteGenerator {
     }
 
     return {
-      path: `/api/${entityName}`,
+      path: entityName,
       router,
       config
     };

@@ -5,9 +5,8 @@ import morgan from 'morgan';
 import { env } from '@humanui/config';
 import { prisma } from '@humanui/db';
 
-// Import routes
-import itemRoutes from './api/item';
-import itemIdRoutes from './api/item/[id]';
+// Import route generator
+import { RouteGenerator } from './generators/route-generator';
 
 const app = express();
 const port = env.API_PORT;
@@ -23,9 +22,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
-app.use('/api/items', itemRoutes);
-app.use('/api/items', itemIdRoutes);
+// --- Auto-generated entity routes ---
+(async () => {
+  try {
+    console.log('🔍 Discovering entities...');
+    const routeGen = RouteGenerator.getInstance();
+    await routeGen.discoverEntities();
+    
+    console.log('📋 Registered entities:', Array.from(routeGen.getEntityConfigs().keys()));
+    
+    const routes = routeGen.generateAllRoutes();
+    console.log('🚀 Generated routes:', routes.map(r => `/api/${r.path}`));
+    
+    for (const { path, router } of routes) {
+      app.use(`/api/${path}`, router);
+      console.log(`✅ Mounted /api/${path}`);
+    }
+  } catch (error) {
+    console.error('❌ Error setting up auto-generated routes:', error);
+  }
+})();
+// ------------------------------------
 
 // Users API (legacy - can be moved to separate route file later)
 app.get('/api/users', async (req, res) => {
