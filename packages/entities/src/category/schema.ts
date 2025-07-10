@@ -1,20 +1,20 @@
 import { z } from 'zod';
 
-// Base category schema
+// Base category schema - updated to match Prisma types
 export const categorySchema = z.object({
   id: z.string().cuid().optional(),
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
-  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
+  description: z.string().max(1000, 'Description must be less than 1000 characters').nullable(),
   slug: z.string().min(1, 'Slug is required').max(255, 'Slug too long'),
-  imageUrl: z.string().url('Invalid image URL').optional().nullable(),
+  imageUrl: z.string().url('Invalid image URL').nullable(),
   isActive: z.boolean().default(true),
   isPublished: z.boolean().default(false),
-  parentId: z.string().cuid().optional().nullable(),
+  parentId: z.string().cuid().nullable(),
   sortOrder: z.number().min(0).default(0),
   organizationId: z.string().cuid().min(1, 'Organization is required'),
   storeId: z.string().cuid().min(1, 'Store is required'),
-  tenantId: z.string().optional(),
-  createdBy: z.string().optional(),
+  tenantId: z.string().nullable(),
+  createdBy: z.string().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });
@@ -64,8 +64,8 @@ export const categoryTreeSchema: z.ZodType<any> = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
-  description: z.string().optional(),
-  imageUrl: z.string().optional().nullable(),
+  description: z.string().nullable(),
+  imageUrl: z.string().nullable(),
   isActive: z.boolean(),
   isPublished: z.boolean(),
   sortOrder: z.number(),

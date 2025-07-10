@@ -1,6 +1,6 @@
-export * from '@prisma/client';
+export * from './generated';
 
-import { PrismaClient, ItemStatus, Priority } from '@prisma/client';
+import { PrismaClient, ItemStatus, Priority } from './generated';
 
 declare global {
   var __prisma: PrismaClient | undefined;

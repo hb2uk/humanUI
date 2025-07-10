@@ -16,22 +16,22 @@ export const operatingHoursSchema = z.object({
   isClosed: z.boolean().default(false),
 });
 
-// Base store schema
+// Base store schema - updated to match Prisma types
 export const storeSchema = z.object({
   id: z.string().cuid().optional(),
   name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
-  displayName: z.string().max(255, 'Display name must be less than 255 characters').optional(),
-  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
-  address: addressSchema,
-  phone: z.string().max(20, 'Phone must be less than 20 characters').optional(),
-  email: z.string().email('Invalid email format').optional(),
-  timezone: z.string().max(50, 'Timezone must be less than 50 characters').optional(),
+  displayName: z.string().max(255, 'Display name must be less than 255 characters').nullable(),
+  description: z.string().max(1000, 'Description must be less than 1000 characters').nullable(),
+  address: z.any(), // JsonValue in Prisma
+  phone: z.string().max(20, 'Phone must be less than 20 characters').nullable(),
+  email: z.string().email('Invalid email format').nullable(),
+  timezone: z.string().max(50, 'Timezone must be less than 50 characters').nullable(),
   isActive: z.boolean().default(true),
-  storeType: z.string().max(100, 'Store type must be less than 100 characters').optional(),
-  operatingHours: z.record(z.string(), operatingHoursSchema).optional(),
+  storeType: z.string().max(100, 'Store type must be less than 100 characters').nullable(),
+  operatingHours: z.any().nullable(), // JsonValue in Prisma
   organizationId: z.string().cuid().min(1, 'Organization is required'),
-  tenantId: z.string().optional(),
-  createdBy: z.string().optional(),
+  tenantId: z.string().nullable(),
+  createdBy: z.string().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

@@ -14,10 +14,11 @@
     "db:reset": "prisma migrate reset"
   },
   "dependencies": {
-    "@prisma/client": "^5.7.1"
+    "@prisma/client": "^6.11.1"
   },
   "devDependencies": {
-    "prisma": "^5.7.1",
-    "typescript": "^5.3.3"
+    "prisma": "^6.11.1",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.6"
   }
 } 

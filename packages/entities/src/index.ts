@@ -1,9 +1,40 @@
-// Export all entities
-export * from './item';
+// Core framework exports
+export * from './core/SchemaBuilder';
+export * from './core/EntityRegistry';
+
+// Entity exports
 export * from './category';
-export * from './store';
 export * from './organization';
+export * from './store';
+export * from './item';
 export * from './itemAttribute';
+export * from './user';
+
+// Import entity registry instance
+import { entityRegistry } from './core/EntityRegistry';
+
+// Auto-generated admin routes
+export const getAdminRoutes = () => {
+  return entityRegistry.generateAdminRoutes();
+};
+
+// Auto-generated API endpoints
+export const getAPIEndpoints = () => {
+  return entityRegistry.generateAPIEndpoints();
+};
+
+// Entity statistics
+export const getEntityStats = () => {
+  return entityRegistry.getEntityStats();
+};
+
+// Service generators
+export const createCategoryService = () => entityRegistry.generateService('category');
+export const createOrganizationService = () => entityRegistry.generateService('organization');
+export const createStoreService = () => entityRegistry.generateService('store');
+export const createItemService = () => entityRegistry.generateService('item');
+export const createItemAttributeService = () => entityRegistry.generateService('itemattribute');
+export const createUserService = () => entityRegistry.generateService('user');
 
 // Export entity configurations
 export { itemConfig } from './item/config';

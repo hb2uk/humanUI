@@ -1,47 +1,41 @@
 import React from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { cn } from '../lib/utils';
+import { Button } from '../components/button';
 import { FormFieldRenderer } from './FormFieldRenderer';
 import { CreateOrUpdateEntityFormProps, EntityFormConfig } from './types';
-
-// Basic button component (would be replaced with ShadCN Button)
-const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'secondary' }>(
-  ({ className, variant = 'default', ...props }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
-    
-    const variantClasses = {
-      default: "bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2",
-      outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2",
-      secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2",
-    };
-
-    return (
-      <button
-        className={cn(baseClasses, variantClasses[variant], className)}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Button.displayName = "Button";
 
 // Utility function to get default values from schema
 const getDefaultValuesFromSchema = <T,>(schema: any, initialValues?: Partial<T>): Partial<T> => {
   const defaults: any = {};
   
-  // Extract default values from schema
-  if (schema._def && schema._def.shape) {
-    Object.keys(schema._def.shape).forEach(key => {
-      const field = schema._def.shape[key];
-      if (field._def && field._def.defaultValue) {
-        defaults[key] = field._def.defaultValue();
-      }
-    });
+  if (!schema) {
+    console.warn('Schema is undefined in getDefaultValuesFromSchema');
+    return { ...defaults, ...initialValues };
   }
   
-  // Merge with initial values
+  // Handle serialized schema format
+  if (schema.fields && Array.isArray(schema.fields)) {
+    schema.fields.forEach((field: any) => {
+      if (field.defaultValue !== undefined) {
+        defaults[field.name] = field.defaultValue;
+      }
+    });
+  } else {
+    // Handle Zod schema format (fallback)
+    const shape = (schema as any).shape || (schema as any)._def?.shape;
+    if (shape) {
+      Object.keys(shape).forEach(key => {
+        const field = shape[key];
+        if (field._def && field._def.defaultValue) {
+          defaults[key] = field._def.defaultValue();
+        }
+      });
+    }
+  }
+  
   return { ...defaults, ...initialValues };
 };
 
@@ -54,17 +48,25 @@ export const CreateOrUpdateEntityForm = <T extends Record<string, any>>({
   isLoading = false,
   className,
 }: CreateOrUpdateEntityFormProps<T>) => {
+  console.log('CreateOrUpdateEntityForm entityConfig:', entityConfig);
+  
+  if (!entityConfig.schema) {
+    console.error('Schema is undefined in entityConfig:', entityConfig);
+    return <div>Error: Form configuration is invalid</div>;
+  }
+  
   const defaultValues = getDefaultValuesFromSchema(entityConfig.schema, initialValues);
   
   const form = useForm<T>({
-    resolver: zodResolver(entityConfig.schema),
-    defaultValues,
+    // Remove Zod resolver for now since we're using serialized schema
+    // resolver: zodResolver(entityConfig.schema as z.ZodSchema<T>),
+    defaultValues: defaultValues as any,
     mode: 'onChange',
   });
 
-  const handleSubmit = async (data: T) => {
+  const handleSubmit = async (data: any) => {
     try {
-      await onSubmit(data);
+      await onSubmit(data as T);
     } catch (error) {
       console.error('Form submission error:', error);
     }

@@ -44,7 +44,7 @@ export interface FormField {
 }
 
 export interface EntityFormConfig<T = any> {
-  schema: z.ZodSchema<T>;
+  schema: any;
   fields: FormField[];
   title?: string;
   description?: string;

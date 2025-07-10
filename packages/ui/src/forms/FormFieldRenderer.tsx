@@ -1,5 +1,5 @@
 import React from 'react';
-import { useFormContext, Controller } from 'react-hook-form';
+import { useFormContext, Controller, type FieldPath, type FieldValues } from 'react-hook-form';
 import { cn } from '../lib/utils';
 import { FormFieldRendererProps, FormField } from './types';
 
@@ -36,7 +36,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttribu
 );
 Textarea.displayName = "Textarea";
 
-const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { options?: { label: string; value: string | number }[] }>(
+const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { options?: { label: string; value: string | number | boolean }[] }>(
   ({ className, options = [], ...props }, ref) => {
     return (
       <select
@@ -49,7 +49,7 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
       >
         <option value="">Select an option</option>
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={String(option.value)} value={String(option.value)}>
             {option.label}
           </option>
         ))}

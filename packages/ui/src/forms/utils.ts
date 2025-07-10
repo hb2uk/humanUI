@@ -5,18 +5,16 @@ import { z } from 'zod';
  */
 export const getDefaultValuesFromSchema = <T,>(schema: z.ZodSchema<T>, initialValues?: Partial<T>): Partial<T> => {
   const defaults: any = {};
-  
-  // Extract default values from schema
-  if (schema._def && schema._def.shape) {
-    Object.keys(schema._def.shape).forEach(key => {
-      const field = schema._def.shape[key];
+  // Use .shape if available, fallback to _def.shape
+  const shape = (schema as any).shape || (schema as any)._def?.shape;
+  if (shape) {
+    Object.keys(shape).forEach(key => {
+      const field = shape[key];
       if (field._def && field._def.defaultValue) {
         defaults[key] = field._def.defaultValue();
       }
     });
   }
-  
-  // Merge with initial values
   return { ...defaults, ...initialValues };
 };
 
@@ -25,12 +23,11 @@ export const getDefaultValuesFromSchema = <T,>(schema: z.ZodSchema<T>, initialVa
  */
 export const schemaToFormFields = (schema: z.ZodSchema<any>): any[] => {
   const fields: any[] = [];
-  
-  if (schema._def && schema._def.shape) {
-    Object.keys(schema._def.shape).forEach(key => {
-      const field = schema._def.shape[key];
+  const shape = (schema as any).shape || (schema as any)._def?.shape;
+  if (shape) {
+    Object.keys(shape).forEach(key => {
+      const field = shape[key];
       const fieldType = getFieldTypeFromZod(field);
-      
       fields.push({
         name: key,
         label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
@@ -39,7 +36,6 @@ export const schemaToFormFields = (schema: z.ZodSchema<any>): any[] => {
       });
     });
   }
-  
   return fields;
 };
 

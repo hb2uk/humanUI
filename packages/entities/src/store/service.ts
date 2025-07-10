@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@humanui/db';
 import { Store, CreateStore, UpdateStore, StoreQuery, StoreStats, StoreBulkOperation, StoreImportData, StoreExportData, OperatingHours } from './types';
 import { storeSchema, createStoreSchema, updateStoreSchema, storeQuerySchema } from './schema';
 
@@ -29,8 +29,19 @@ export class StoreService {
 
     const store = await this.prisma.store.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        displayName: validatedData.displayName,
+        description: validatedData.description,
+        address: validatedData.address ?? {},
+        phone: validatedData.phone,
+        email: validatedData.email,
+        timezone: validatedData.timezone,
+        isActive: validatedData.isActive,
+        storeType: validatedData.storeType,
+        operatingHours: validatedData.operatingHours,
+        organizationId: validatedData.organizationId,
         tenantId: tenantId || null,
+        createdBy: validatedData.createdBy,
       },
     });
 
@@ -321,16 +332,18 @@ export class StoreService {
       try {
         const store = await this.create({
           name: item.name,
-          displayName: item.displayName,
-          description: item.description,
-          address: item.address,
-          phone: item.phone,
-          email: item.email,
-          timezone: item.timezone,
-          storeType: item.storeType,
+          displayName: item.displayName ?? null,
+          description: item.description ?? null,
+          address: item.address ?? {},
+          phone: item.phone ?? null,
+          email: item.email ?? null,
+          timezone: item.timezone ?? null,
+          storeType: item.storeType ?? null,
           isActive: item.isActive ?? true,
-          operatingHours: item.operatingHours,
+          operatingHours: item.operatingHours ?? null,
           organizationId,
+          tenantId: tenantId ?? null,
+          createdBy: null,
         }, tenantId);
 
         importedStores.push(store);
@@ -366,7 +379,7 @@ export class StoreService {
       },
     });
 
-    return stores.map(store => ({
+    return stores.map((store: any) => ({
       id: store.id,
       name: store.name,
       displayName: store.displayName || undefined,
@@ -411,7 +424,7 @@ export class StoreService {
     }
 
     const targetDate = date || new Date();
-    const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+    const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     
     return (store.operatingHours as any)[dayOfWeek] || null;
   }

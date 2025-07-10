@@ -1,47 +1,48 @@
 import { z } from 'zod';
+import { ITEM_TYPES, FULFILLMENT_METHODS, VALIDATION_RULES } from '@humanui/constants';
 import { ItemStatus, Priority } from '@humanui/db';
 
 // Item variant schema
 export const itemVariantSchema = z.object({
   id: z.string().cuid().optional(),
   itemId: z.string().cuid().min(1, 'Item ID is required'),
-  variantCombination: z.record(z.any()).optional(),
-  variantSku: z.string().optional(),
+  variantCombination: z.any().nullable(),
+  variantSku: z.string().nullable(),
   priceAdjustment: z.number().default(0),
   stockQuantity: z.number().min(0).default(0),
   isAvailable: z.boolean().default(true),
-  tenantId: z.string().optional(),
+  tenantId: z.string().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });
 
-// Base Item schema (enhanced version)
+// Base Item schema matching Prisma schema
 export const itemSchema = z.object({
-  id: z.string().cuid().optional(),
-  categoryType: z.string().min(1, 'Category type is required').max(100, 'Category type must be less than 100 characters'),
-  sku: z.string().min(1, 'SKU is required').max(100, 'SKU must be less than 100 characters'),
-  name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
-  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
+  id: z.string().cuid(),
+  categoryType: z.string().min(1, 'Category type is required'),
+  sku: z.string().min(1, 'SKU is required'),
+  name: z.string().min(1).max(VALIDATION_RULES.MAX_NAME_LENGTH),
+  description: z.string().max(VALIDATION_RULES.MAX_DESCRIPTION_LENGTH).nullable(),
   hasVariants: z.boolean().default(false),
-  variantGroups: z.record(z.any()).optional(),
+  variantGroups: z.any().nullable(),
   fulfillmentMethod: z.string().default('pickup'),
-  fulfillmentConfig: z.record(z.any()).default({}),
-  regulatoryFlags: z.record(z.any()).default({}),
+  fulfillmentConfig: z.any().default({}),
+  regulatoryFlags: z.any().default({}),
   complianceRequired: z.boolean().default(false),
   basePrice: z.number().positive('Base price must be positive'),
-  currency: z.string().default('THB'),
-  pricingRules: z.record(z.any()).default({}),
+  currency: z.string().length(3).default('THB'),
+  pricingRules: z.any().default({}),
   status: z.nativeEnum(ItemStatus).default(ItemStatus.DRAFT),
   priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
-  tags: z.array(z.string().min(1)).default([]),
-  metadata: z.record(z.any()).optional(),
-  organizationId: z.string().cuid().min(1, 'Organization is required'),
-  storeId: z.string().cuid().optional(),
-  categoryId: z.string().cuid().optional(),
-  tenantId: z.string().optional(),
-  createdBy: z.string().optional(),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
+  tags: z.array(z.string()).default([]),
+  metadata: z.any().nullable(),
+  organizationId: z.string().cuid('Organization ID is required'),
+  storeId: z.string().cuid().nullable(),
+  categoryId: z.string().cuid().nullable(),
+  tenantId: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
 });
 
 // Create Item schema (without id, timestamps)
@@ -71,7 +72,7 @@ export const itemQuerySchema = z.object({
   createdBy: z.string().optional(),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(20),
-  sortBy: z.enum(['name', 'basePrice', 'status', 'priority', 'createdAt', 'updatedAt']).default('createdAt'),
+  sortBy: z.enum(['name', 'basePrice', 'status', 'priority', 'createdAt', 'updatedAt', 'sku']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 

@@ -198,7 +198,7 @@ export const storeConfig = {
   name: 'store',
   displayName: 'Store',
   description: 'Manage retail stores and their configurations',
-  path: '/stores',
+  path: 'stores',
   service: StoreService,
   schemas: {
     base: baseStoreSchema,

@@ -1,4 +1,5 @@
-import { PrismaClient, ItemStatus, Priority, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '@humanui/db';
+import { ItemStatus, Priority } from '@humanui/db';
 import { 
   CreateItem, 
   UpdateItem, 
@@ -20,7 +21,26 @@ export class ItemService {
     
     const item = await this.prisma.item.create({
       data: {
-        ...validatedData,
+        categoryType: validatedData.categoryType,
+        sku: validatedData.sku,
+        name: validatedData.name,
+        description: validatedData.description,
+        hasVariants: validatedData.hasVariants,
+        variantGroups: validatedData.variantGroups,
+        fulfillmentMethod: validatedData.fulfillmentMethod,
+        fulfillmentConfig: validatedData.fulfillmentConfig,
+        regulatoryFlags: validatedData.regulatoryFlags,
+        complianceRequired: validatedData.complianceRequired,
+        basePrice: validatedData.basePrice,
+        currency: validatedData.currency,
+        pricingRules: validatedData.pricingRules,
+        status: validatedData.status,
+        priority: validatedData.priority,
+        tags: validatedData.tags,
+        metadata: validatedData.metadata,
+        organizationId: validatedData.organizationId,
+        storeId: validatedData.storeId,
+        categoryId: validatedData.categoryId,
         tenantId: tenantId || validatedData.tenantId,
         createdBy: createdBy || validatedData.createdBy,
       },
@@ -78,20 +98,6 @@ export class ItemService {
   }
 
   /**
-   * Hard delete an item
-   */
-  async hardDelete(id: string, tenantId?: string): Promise<CreateItem> {
-    const item = await this.prisma.item.delete({
-      where: {
-        id,
-        ...(tenantId && { tenantId }),
-      },
-    });
-
-    return item;
-  }
-
-  /**
    * List items with filtering, pagination, and sorting
    */
   async list(query: ItemQuery, tenantId?: string): Promise<ItemsListResponse> {
@@ -99,11 +105,15 @@ export class ItemService {
     const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc', ...filters } = validatedQuery;
 
     // Build where clause
-    const where: Prisma.ItemWhereInput = {
+    const where: any = {
       ...(tenantId && { tenantId }),
       ...(filters.status && { status: filters.status }),
       ...(filters.priority && { priority: filters.priority }),
       ...(filters.createdBy && { createdBy: filters.createdBy }),
+      ...(filters.organizationId && { organizationId: filters.organizationId }),
+      ...(filters.storeId && { storeId: filters.storeId }),
+      ...(filters.categoryId && { categoryId: filters.categoryId }),
+      ...(filters.categoryType && { categoryType: filters.categoryType }),
       ...(filters.tags && filters.tags.length > 0 && {
         tags: {
           hasSome: filters.tags,
@@ -113,6 +123,7 @@ export class ItemService {
         OR: [
           { name: { contains: filters.search, mode: 'insensitive' } },
           { description: { contains: filters.search, mode: 'insensitive' } },
+          { sku: { contains: filters.search, mode: 'insensitive' } },
         ],
       }),
       // Exclude deleted items by default
@@ -120,7 +131,7 @@ export class ItemService {
     };
 
     // Build order by clause
-    const orderBy: Prisma.ItemOrderByWithRelationInput = {
+    const orderBy: any = {
       [sortBy]: sortOrder,
     };
 
@@ -148,7 +159,7 @@ export class ItemService {
    * Get item statistics
    */
   async getStats(tenantId?: string): Promise<ItemStats> {
-    const where: Prisma.ItemWhereInput = {
+    const where: any = {
       ...(tenantId && { tenantId }),
       status: { not: ItemStatus.DELETED },
     };
@@ -182,15 +193,15 @@ export class ItemService {
 
     // Transform the results
     const statusStats = Object.fromEntries(
-      byStatus.map(({ status, _count }) => [status, _count.status])
+      byStatus.map(({ status, _count }: { status: ItemStatus; _count: { status: number } }) => [status, _count.status])
     ) as Record<ItemStatus, number>;
 
     const priorityStats = Object.fromEntries(
-      byPriority.map(({ priority, _count }) => [priority, _count.priority])
+      byPriority.map(({ priority, _count }: { priority: Priority; _count: { priority: number } }) => [priority, _count.priority])
     ) as Record<Priority, number>;
 
     const monthlyStats = Object.fromEntries(
-      byMonth.map(({ createdAt, _count }) => [
+      byMonth.map(({ createdAt, _count }: { createdAt: Date; _count: { createdAt: number } }) => [
         `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}`,
         _count.createdAt,
       ])
@@ -205,52 +216,95 @@ export class ItemService {
   }
 
   /**
-   * Bulk operations
+   * Bulk operations on items
    */
   async bulkOperation(operation: BulkItemOperation, tenantId?: string): Promise<number> {
     const { ids, operation: op, data } = operation;
 
-    const where: Prisma.ItemWhereInput = {
-      id: { in: ids },
-      ...(tenantId && { tenantId }),
-    };
-
-    let updateData: Prisma.ItemUpdateInput = {};
+    let affectedCount = 0;
 
     switch (op) {
+      case 'update':
+        if (data) {
+          const updatePromises = ids.map(id =>
+            this.prisma.item.update({
+              where: { id, ...(tenantId && { tenantId }) },
+              data,
+            })
+          );
+          await Promise.all(updatePromises);
+          affectedCount = ids.length;
+        }
+        break;
+
       case 'delete':
-        updateData = { status: ItemStatus.DELETED };
+        const deletePromises = ids.map(id =>
+          this.prisma.item.update({
+            where: { id, ...(tenantId && { tenantId }) },
+            data: { status: ItemStatus.DELETED },
+          })
+        );
+        await Promise.all(deletePromises);
+        affectedCount = ids.length;
         break;
+
       case 'archive':
-        updateData = { status: ItemStatus.ARCHIVED };
+        const archivePromises = ids.map(id =>
+          this.prisma.item.update({
+            where: { id, ...(tenantId && { tenantId }) },
+            data: { status: ItemStatus.ARCHIVED },
+          })
+        );
+        await Promise.all(archivePromises);
+        affectedCount = ids.length;
         break;
+
       case 'activate':
-        updateData = { status: ItemStatus.ACTIVE };
+        const activatePromises = ids.map(id =>
+          this.prisma.item.update({
+            where: { id, ...(tenantId && { tenantId }) },
+            data: { status: ItemStatus.ACTIVE },
+          })
+        );
+        await Promise.all(activatePromises);
+        affectedCount = ids.length;
         break;
+
       case 'updateStatus':
         if (data?.status) {
-          updateData = { status: data.status };
+          const updateStatusPromises = ids.map(id =>
+            this.prisma.item.update({
+              where: { id, ...(tenantId && { tenantId }) },
+              data: { status: data.status },
+            })
+          );
+          await Promise.all(updateStatusPromises);
+          affectedCount = ids.length;
         }
         break;
+
       case 'updatePriority':
         if (data?.priority) {
-          updateData = { priority: data.priority };
+          const updatePriorityPromises = ids.map(id =>
+            this.prisma.item.update({
+              where: { id, ...(tenantId && { tenantId }) },
+              data: { priority: data.priority },
+            })
+          );
+          await Promise.all(updatePriorityPromises);
+          affectedCount = ids.length;
         }
         break;
+
       default:
-        throw new Error(`Unknown bulk operation: ${op}`);
+        throw new Error(`Unsupported bulk operation: ${op}`);
     }
 
-    const result = await this.prisma.item.updateMany({
-      where,
-      data: updateData,
-    });
-
-    return result.count;
+    return affectedCount;
   }
 
   /**
-   * Search items with full-text search
+   * Search items by term
    */
   async search(searchTerm: string, tenantId?: string, limit = 10): Promise<CreateItem[]> {
     const items = await this.prisma.item.findMany({
@@ -259,12 +313,12 @@ export class ItemService {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
           { description: { contains: searchTerm, mode: 'insensitive' } },
-          { tags: { has: searchTerm } },
+          { sku: { contains: searchTerm, mode: 'insensitive' } },
         ],
         status: { not: ItemStatus.DELETED },
       },
-      orderBy: { createdAt: 'desc' },
       take: limit,
+      orderBy: { createdAt: 'desc' },
     });
 
     return items;
@@ -289,18 +343,19 @@ export class ItemService {
   }
 
   /**
-   * Get all unique tags for a tenant
+   * Get all unique tags
    */
   async getTags(tenantId?: string): Promise<string[]> {
     const items = await this.prisma.item.findMany({
       where: {
         ...(tenantId && { tenantId }),
         status: { not: ItemStatus.DELETED },
+        tags: { isEmpty: false },
       },
       select: { tags: true },
     });
 
-    const allTags = items.flatMap(item => item.tags);
-    return [...new Set(allTags)];
+    const allTags = items.flatMap((item: { tags: string[] }) => item.tags);
+    return [...new Set(allTags)] as string[];
   }
 } 

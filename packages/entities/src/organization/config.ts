@@ -177,7 +177,7 @@ export const organizationConfig = {
   name: 'organization',
   displayName: 'Organization',
   description: 'Manage organizations and their configurations',
-  path: '/organizations',
+  path: 'organizations',
   service: OrganizationService,
   schemas: {
     base: baseOrganizationSchema,

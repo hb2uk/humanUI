@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@humanui/db';
 import { withTenant, TenantRequest } from '../middleware/tenant';
 import { withOptionalLocale, LocaleRequest } from '../middleware/locale';
+import { entityRegistry, getAPIEndpoints } from '@humanui/entities';
 
 // Types for route generation
 export interface EntityConfig {
@@ -63,39 +64,29 @@ export class RouteGenerator {
    */
   async discoverEntities(): Promise<void> {
     try {
-      // Import entities dynamically
-      const entities = await import('@humanui/entities');
+      // Get API endpoints from the entity registry
+      const apiEndpoints = getAPIEndpoints();
       
-      // Look for service classes and schemas
-      const entityNames = Object.keys(entities).filter(key => {
-        const entity = entities[key];
-        return (
-          typeof entity === 'function' && 
-          entity.prototype && 
-          (entity.prototype.constructor.name.includes('Service') || 
-           key.includes('Service'))
-        );
-      });
-
-      for (const entityName of entityNames) {
-        const serviceClass = entities[entityName];
-        const baseName = entityName.replace('Service', '').toLowerCase();
+      for (const endpoint of apiEndpoints) {
+        const entityName = endpoint.entity.toLowerCase();
+        const builder = entityRegistry.getBuilder(endpoint.entity);
         
-        // Try to find corresponding schemas
-        const createSchema = entities[`create${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Schema`] || 
-                           entities[`create${entityName.replace('Service', '')}Schema`];
-        const updateSchema = entities[`update${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Schema`] || 
-                           entities[`update${entityName.replace('Service', '')}Schema`];
-        const querySchema = entities[`${baseName}QuerySchema`] || 
-                          entities[`${entityName.replace('Service', '')}QuerySchema`];
+        if (!builder) {
+          console.warn(`No builder found for entity: ${endpoint.entity}`);
+          continue;
+        }
+
+        // Generate service instance
+        const service = builder.generateService();
+        service.setPrisma(prisma);
 
         const config: EntityConfig = {
-          name: baseName,
-          service: new serviceClass(prisma),
+          name: entityName,
+          service,
           schemas: {
-            create: createSchema,
-            update: updateSchema,
-            query: querySchema,
+            create: endpoint.schemas.create,
+            update: endpoint.schemas.update,
+            query: endpoint.schemas.query,
           },
           endpoints: {
             list: true,
@@ -179,48 +170,37 @@ export class RouteGenerator {
           const queryParams = schemas.query ? schemas.query.parse(req.query) : req.query;
           const result = await service.list(queryParams, req.tenantId);
 
-          const formattedItems = result.items?.map((item: any) => ({
+          // Handle different property names for the items array
+          const itemsKey = Object.keys(result).find(key => 
+            Array.isArray(result[key]) && 
+            key !== 'total' && 
+            key !== 'page' && 
+            key !== 'limit' && 
+            key !== 'totalPages'
+          );
+          
+          const items = itemsKey ? result[itemsKey] : [];
+
+          const formattedItems = items.map((item: any) => ({
             ...item,
             createdAt: formatDate(item.createdAt, req.localeSettings?.dateFormat),
             updatedAt: formatDate(item.updatedAt, req.localeSettings?.dateFormat),
-          })) || [];
+          }));
 
           res.json({
             data: formattedItems,
-            meta: {
-              total: result.total,
-              page: result.page,
-              limit: result.limit,
-              totalPages: result.totalPages,
-              hasNext: result.page < result.totalPages,
-              hasPrev: result.page > 1,
+            pagination: {
+              total: result.total || 0,
+              page: result.page || 1,
+              limit: result.limit || 20,
+              totalPages: result.totalPages || 1,
             },
-            links: {
-              self: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-              first: `${req.protocol}://${req.get('host')}${req.path}?page=1&limit=${result.limit}`,
-              last: `${req.protocol}://${req.get('host')}${req.path}?page=${result.totalPages}&limit=${result.limit}`,
-              next: result.page < result.totalPages 
-                ? `${req.protocol}://${req.get('host')}${req.path}?page=${result.page + 1}&limit=${result.limit}`
-                : null,
-              prev: result.page > 1 
-                ? `${req.protocol}://${req.get('host')}${req.path}?page=${result.page - 1}&limit=${result.limit}`
-                : null,
-            }
           });
         } catch (error) {
-          if (error instanceof z.ZodError) {
-            return res.status(400).json({
-              error: 'Validation Error',
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid query parameters',
-              details: error.errors
-            });
-          }
-          console.error(`Error fetching ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to fetch ${entityName}`
+          console.error(`Error listing ${entityName}:`, error);
+          res.status(500).json({ 
+            error: `Failed to list ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
@@ -230,44 +210,21 @@ export class RouteGenerator {
     if (endpoints?.create) {
       router.post('/', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
-          const entityData = schemas.create ? schemas.create.parse(req.body) : req.body;
-          const newEntity = await service.create(
-            entityData, 
-            req.tenantId, 
-            req.headers['x-user-id'] as string
-          );
-
-          const formattedEntity = {
-            ...newEntity,
-            createdAt: formatDate(newEntity.createdAt, req.localeSettings?.dateFormat),
-            updatedAt: formatDate(newEntity.updatedAt, req.localeSettings?.dateFormat),
-          };
-
+          const validatedData = schemas.create ? schemas.create.parse(req.body) : req.body;
+          const result = await service.create(validatedData, req.tenantId);
+          
           res.status(201).json({
-            data: formattedEntity,
-            meta: {
-              created: true,
-              timestamp: new Date().toISOString()
+            data: {
+              ...result,
+              createdAt: formatDate(result.createdAt, req.localeSettings?.dateFormat),
+              updatedAt: formatDate(result.updatedAt, req.localeSettings?.dateFormat),
             },
-            links: {
-              self: `${req.protocol}://${req.get('host')}/api/${entityName}/${newEntity.id}`,
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
           });
         } catch (error) {
-          if (error instanceof z.ZodError) {
-            return res.status(400).json({
-              error: 'Validation Error',
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid entity data',
-              details: error.errors
-            });
-          }
           console.error(`Error creating ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to create ${entityName}`
+          res.status(400).json({ 
+            error: `Failed to create ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
@@ -277,40 +234,26 @@ export class RouteGenerator {
     if (endpoints?.getById) {
       router.get('/:id', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
-          const { id } = req.params;
-          const entity = await service.getById(id, req.tenantId);
-
-          if (!entity) {
-            return res.status(404).json({
-              error: 'Not Found',
-              code: 'ENTITY_NOT_FOUND',
-              message: `${entityName} not found`
+          const result = await service.findById(req.params.id, req.tenantId);
+          
+          if (!result) {
+            return res.status(404).json({ 
+              error: `${entityName} not found` 
             });
           }
 
-          const formattedEntity = {
-            ...entity,
-            createdAt: formatDate(entity.createdAt, req.localeSettings?.dateFormat),
-            updatedAt: formatDate(entity.updatedAt, req.localeSettings?.dateFormat),
-          };
-
           res.json({
-            data: formattedEntity,
-            meta: {
-              retrieved: new Date().toISOString(),
-              tenant: req.tenantId
+            data: {
+              ...result,
+              createdAt: formatDate(result.createdAt, req.localeSettings?.dateFormat),
+              updatedAt: formatDate(result.updatedAt, req.localeSettings?.dateFormat),
             },
-            links: {
-              self: `${req.protocol}://${req.get('host')}/api/${entityName}/${id}`,
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
           });
         } catch (error) {
-          console.error(`Error fetching ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to fetch ${entityName}`
+          console.error(`Error getting ${entityName}:`, error);
+          res.status(500).json({ 
+            error: `Failed to get ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
@@ -320,181 +263,68 @@ export class RouteGenerator {
     if (endpoints?.update) {
       router.put('/:id', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
-          const { id } = req.params;
-          const updateData = schemas.update ? schemas.update.parse({ id, ...req.body }) : { id, ...req.body };
-
-          const existingEntity = await service.getById(id, req.tenantId);
-          if (!existingEntity) {
-            return res.status(404).json({
-              error: 'Not Found',
-              code: 'ENTITY_NOT_FOUND',
-              message: `${entityName} not found`
-            });
-          }
-
-          const updatedEntity = await service.update(updateData, req.tenantId);
-
-          const formattedEntity = {
-            ...updatedEntity,
-            createdAt: formatDate(updatedEntity.createdAt, req.localeSettings?.dateFormat),
-            updatedAt: formatDate(updatedEntity.updatedAt, req.localeSettings?.dateFormat),
-          };
-
+          const validatedData = schemas.update ? schemas.update.parse(req.body) : req.body;
+          const result = await service.update(req.params.id, validatedData, req.tenantId);
+          
           res.json({
-            data: formattedEntity,
-            meta: {
-              updated: true,
-              timestamp: new Date().toISOString(),
-              tenant: req.tenantId
+            data: {
+              ...result,
+              createdAt: formatDate(result.createdAt, req.localeSettings?.dateFormat),
+              updatedAt: formatDate(result.updatedAt, req.localeSettings?.dateFormat),
             },
-            links: {
-              self: `${req.protocol}://${req.get('host')}/api/${entityName}/${id}`,
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
           });
         } catch (error) {
-          if (error instanceof z.ZodError) {
-            return res.status(400).json({
-              error: 'Validation Error',
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid entity data',
-              details: error.errors
-            });
-          }
           console.error(`Error updating ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to update ${entityName}`
+          res.status(400).json({ 
+            error: `Failed to update ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
     }
 
-    // PATCH /api/{entity}/:id - Partially update entity
+    // PATCH /api/{entity}/:id - Partial update entity
     if (endpoints?.patch) {
       router.patch('/:id', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
-          const { id } = req.params;
-          const updateData = { id, ...req.body };
-
-          const existingEntity = await service.getById(id, req.tenantId);
-          if (!existingEntity) {
-            return res.status(404).json({
-              error: 'Not Found',
-              code: 'ENTITY_NOT_FOUND',
-              message: `${entityName} not found`
-            });
-          }
-
-          const updatedEntity = await service.update(updateData, req.tenantId);
-
-          const formattedEntity = {
-            ...updatedEntity,
-            createdAt: formatDate(updatedEntity.createdAt, req.localeSettings?.dateFormat),
-            updatedAt: formatDate(updatedEntity.updatedAt, req.localeSettings?.dateFormat),
-          };
-
+          const validatedData = schemas.update ? (schemas.update as z.ZodObject<any>).partial().parse(req.body) : req.body;
+          const result = await service.update(req.params.id, validatedData, req.tenantId);
+          
           res.json({
-            data: formattedEntity,
-            meta: {
-              updated: true,
-              timestamp: new Date().toISOString(),
-              tenant: req.tenantId
+            data: {
+              ...result,
+              createdAt: formatDate(result.createdAt, req.localeSettings?.dateFormat),
+              updatedAt: formatDate(result.updatedAt, req.localeSettings?.dateFormat),
             },
-            links: {
-              self: `${req.protocol}://${req.get('host')}/api/${entityName}/${id}`,
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
           });
         } catch (error) {
-          console.error(`Error updating ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to update ${entityName}`
+          console.error(`Error patching ${entityName}:`, error);
+          res.status(400).json({ 
+            error: `Failed to patch ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
     }
 
-    // DELETE /api/{entity}/:id - Delete entity (soft delete)
+    // DELETE /api/{entity}/:id - Soft delete entity
     if (endpoints?.delete) {
       router.delete('/:id', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
-          const { id } = req.params;
-          const existingEntity = await service.getById(id, req.tenantId);
-          if (!existingEntity) {
-            return res.status(404).json({
-              error: 'Not Found',
-              code: 'ENTITY_NOT_FOUND',
-              message: `${entityName} not found`
+          const result = await service.delete(req.params.id, req.tenantId);
+          
+          if (!result) {
+            return res.status(404).json({ 
+              error: `${entityName} not found or cannot be deleted` 
             });
           }
 
-          const deletedEntity = await service.delete(id, req.tenantId);
-
-          const formattedEntity = {
-            ...deletedEntity,
-            createdAt: formatDate(deletedEntity.createdAt, req.localeSettings?.dateFormat),
-            updatedAt: formatDate(deletedEntity.updatedAt, req.localeSettings?.dateFormat),
-          };
-
-          res.json({
-            data: formattedEntity,
-            meta: {
-              deleted: true,
-              timestamp: new Date().toISOString(),
-              tenant: req.tenantId
-            },
-            links: {
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
-          });
+          res.status(204).send();
         } catch (error) {
           console.error(`Error deleting ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to delete ${entityName}`
-          });
-        }
-      });
-    }
-
-    // DELETE /api/{entity}/:id/hard - Hard delete entity
-    if (endpoints?.hardDelete) {
-      router.delete('/:id/hard', ...createMiddleware(), async (req: EntityRequest, res) => {
-        try {
-          const { id } = req.params;
-          const existingEntity = await service.getById(id, req.tenantId);
-          if (!existingEntity) {
-            return res.status(404).json({
-              error: 'Not Found',
-              code: 'ENTITY_NOT_FOUND',
-              message: `${entityName} not found`
-            });
-          }
-
-          const deletedEntity = await service.hardDelete(id, req.tenantId);
-
-          res.json({
-            data: { id: deletedEntity.id },
-            meta: {
-              hardDeleted: true,
-              timestamp: new Date().toISOString(),
-              tenant: req.tenantId
-            },
-            links: {
-              collection: `${req.protocol}://${req.get('host')}/api/${entityName}`
-            }
-          });
-        } catch (error) {
-          console.error(`Error hard deleting ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to hard delete ${entityName}`
+          res.status(500).json({ 
+            error: `Failed to delete ${entityName}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
@@ -505,72 +335,26 @@ export class RouteGenerator {
       router.get('/stats', ...createMiddleware(), async (req: EntityRequest, res) => {
         try {
           const stats = await service.getStats(req.tenantId);
-
-          res.json({
-            data: stats,
-            meta: {
-              generated: new Date().toISOString(),
-              tenant: req.tenantId
-            }
-          });
+          res.json({ data: stats });
         } catch (error) {
-          console.error(`Error fetching ${entityName} stats:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to fetch ${entityName} statistics`
-          });
-        }
-      });
-    }
-
-    // POST /api/{entity}/bulk - Bulk operations
-    if (endpoints?.bulk) {
-      router.post('/bulk', ...createMiddleware(), async (req: EntityRequest, res) => {
-        try {
-          const { ids, operation, data } = req.body;
-
-          if (!ids || !Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({
-              error: 'Validation Error',
-              code: 'VALIDATION_ERROR',
-              message: 'IDs array is required and must not be empty'
-            });
-          }
-
-          const affectedCount = await service.bulkOperation(
-            { ids, operation, data },
-            req.tenantId
-          );
-
-          res.json({
-            data: { affectedCount },
-            meta: {
-              operation,
-              timestamp: new Date().toISOString(),
-              tenant: req.tenantId
-            }
-          });
-        } catch (error) {
-          console.error(`Error performing bulk operation on ${entityName}:`, error);
-          res.status(500).json({
-            error: 'Internal Server Error',
-            code: 'INTERNAL_ERROR',
-            message: `Failed to perform bulk operation on ${entityName}`
+          console.error(`Error getting ${entityName} stats:`, error);
+          res.status(500).json({ 
+            error: `Failed to get ${entityName} stats`,
+            details: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       });
     }
 
     return {
-      path: entityName,
+      path: `/api/${entityName}`,
       router,
-      config
+      config,
     };
   }
 
   /**
-   * Generate routes for all registered entities
+   * Generate all routes for all registered entities
    */
   generateAllRoutes(): GeneratedRoute[] {
     const routes: GeneratedRoute[] = [];
@@ -581,7 +365,7 @@ export class RouteGenerator {
         routes.push(route);
       }
     }
-
+    
     return routes;
   }
 
@@ -589,6 +373,6 @@ export class RouteGenerator {
    * Get all registered entity configurations
    */
   getEntityConfigs(): Map<string, EntityConfig> {
-    return new Map(this.entityConfigs);
+    return this.entityConfigs;
   }
 } 

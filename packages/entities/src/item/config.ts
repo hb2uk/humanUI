@@ -169,7 +169,7 @@ export const itemConfig = {
   name: 'item',
   displayName: 'Item',
   description: 'Manage inventory items and their configurations',
-  path: '/items',
+  path: 'items',
   service: ItemService,
   schemas: {
     base: baseItemSchema,

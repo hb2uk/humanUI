@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@humanui/db';
 import { Category, CreateCategory, UpdateCategory, CategoryQuery, CategoryTreeNode, CategoryStats, CategoryBulkOperation, CategoryImportData, CategoryExportData } from './types';
 import { categorySchema, createCategorySchema, updateCategorySchema, categoryQuerySchema } from './schema';
 
@@ -45,8 +45,18 @@ export class CategoryService {
 
     const category = await this.prisma.category.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        description: validatedData.description,
+        slug: validatedData.slug,
+        imageUrl: validatedData.imageUrl,
+        isActive: validatedData.isActive,
+        isPublished: validatedData.isPublished,
+        parentId: validatedData.parentId,
+        sortOrder: validatedData.sortOrder,
+        organizationId: validatedData.organizationId,
+        storeId: validatedData.storeId,
         tenantId: tenantId || null,
+        createdBy: validatedData.createdBy,
       },
     });
 
@@ -277,8 +287,8 @@ export class CategoryService {
 
     const buildTree = (parentId: string | null): CategoryTreeNode[] => {
       return categories
-        .filter(cat => cat.parentId === parentId)
-        .map(cat => ({
+        .filter((cat: any) => cat.parentId === parentId)
+        .map((cat: any) => ({
           id: cat.id,
           name: cat.name,
           slug: cat.slug,
@@ -357,7 +367,7 @@ export class CategoryService {
       publishedCategories,
       categoriesWithProducts: categoriesWithChildren,
       averageProductsPerCategory,
-      topCategories: topCategories.map(cat => ({
+      topCategories: topCategories.map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         productCount: cat._count.children,
@@ -465,13 +475,16 @@ export class CategoryService {
         const category = await this.create({
           name: item.name,
           slug: item.slug,
-          description: item.description,
+          description: item.description ?? null,
+          imageUrl: null,
           parentId,
           sortOrder: item.sortOrder || 0,
           isActive: item.isActive ?? true,
           isPublished: item.isPublished ?? false,
           organizationId,
           storeId,
+          tenantId: tenantId ?? null,
+          createdBy: null,
         }, tenantId);
 
         importedCategories.push(category);
@@ -506,7 +519,7 @@ export class CategoryService {
       },
     });
 
-    return categories.map(cat => ({
+    return categories.map((cat: any) => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,

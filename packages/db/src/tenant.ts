@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from './generated';
 
 /**
  * Prisma middleware to enforce tenant isolation.
@@ -30,7 +30,8 @@ export function tenantMiddleware(tenantId: string) {
 export function extendWithTenant(prisma: PrismaClient) {
   return Object.assign(prisma, {
     forTenant(tenantId: string) {
-      const client = prisma.$extends({});
+      // Create a new client instance with middleware applied
+      const client = new PrismaClient();
       client.$use(tenantMiddleware(tenantId));
       return client;
     },

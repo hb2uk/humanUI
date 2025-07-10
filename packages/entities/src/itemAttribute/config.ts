@@ -152,7 +152,7 @@ export const itemAttributeConfig: EntityConfig = {
   name: 'itemAttribute',
   displayName: 'Item Attribute',
   description: 'Manage item attributes and their configurations',
-  path: '/item-attributes',
+  path: 'item-attributes',
   service: ItemAttributeService,
   schemas: {
     base: itemAttributeSchema,

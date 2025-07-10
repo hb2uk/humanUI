@@ -1,27 +1,21 @@
 import { z } from 'zod';
 
-// Base organization schema
+// Base organization schema - updated to match Prisma types
 export const organizationSchema = z.object({
   id: z.string().cuid().optional(),
   name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
   slug: z.string().min(1, 'Slug is required').max(255, 'Slug must be less than 255 characters'),
-  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
-  logoUrl: z.string().url('Invalid logo URL').optional().nullable(),
-  website: z.string().url('Invalid website URL').optional().nullable(),
-  email: z.string().email('Invalid email format').optional(),
-  phone: z.string().max(20, 'Phone must be less than 20 characters').optional(),
-  address: z.object({
-    street: z.string().max(255, 'Street must be less than 255 characters').optional(),
-    city: z.string().max(100, 'City must be less than 100 characters').optional(),
-    state: z.string().max(100, 'State must be less than 100 characters').optional(),
-    postalCode: z.string().max(20, 'Postal code must be less than 20 characters').optional(),
-    country: z.string().max(100, 'Country must be less than 100 characters').optional(),
-  }).optional(),
-  settings: z.record(z.any()).default({}),
+  description: z.string().max(1000, 'Description must be less than 1000 characters').nullable(),
+  logoUrl: z.string().url('Invalid logo URL').nullable(),
+  website: z.string().url('Invalid website URL').nullable(),
+  email: z.string().email('Invalid email format').nullable(),
+  phone: z.string().max(20, 'Phone must be less than 20 characters').nullable(),
+  address: z.any().nullable(), // JsonValue in Prisma
+  settings: z.any().default({}), // JsonValue in Prisma
   isActive: z.boolean().default(true),
   isPublic: z.boolean().default(false),
-  tenantId: z.string().optional(),
-  createdBy: z.string().optional(),
+  tenantId: z.string().nullable(),
+  createdBy: z.string().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

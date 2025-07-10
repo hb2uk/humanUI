@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@humanui/db';
 import { Organization, CreateOrganization, UpdateOrganization, OrganizationQuery, OrganizationStats, OrganizationBulkOperation, OrganizationImportData, OrganizationExportData, OrganizationSettings } from './types';
 import { organizationSchema, createOrganizationSchema, updateOrganizationSchema, organizationQuerySchema } from './schema';
 
@@ -29,8 +29,19 @@ export class OrganizationService {
 
     const organization = await this.prisma.organization.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        slug: validatedData.slug,
+        description: validatedData.description,
+        logoUrl: validatedData.logoUrl,
+        website: validatedData.website,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        settings: validatedData.settings,
+        isActive: validatedData.isActive,
+        isPublic: validatedData.isPublic,
         tenantId: tenantId || null,
+        createdBy: validatedData.createdBy,
       },
     });
 
@@ -340,15 +351,17 @@ export class OrganizationService {
         const organization = await this.create({
           name: item.name,
           slug: item.slug,
-          description: item.description,
-          logoUrl: item.logoUrl,
-          website: item.website,
-          email: item.email,
-          phone: item.phone,
-          address: item.address,
+          description: item.description ?? null,
+          logoUrl: item.logoUrl ?? null,
+          website: item.website ?? null,
+          email: item.email ?? null,
+          phone: item.phone ?? null,
+          address: item.address ?? null,
           isActive: item.isActive ?? true,
           isPublic: item.isPublic ?? false,
-          settings: item.settings,
+          settings: item.settings ?? null,
+          tenantId: tenantId ?? null,
+          createdBy: null,
         }, tenantId);
 
         importedOrganizations.push(organization);
@@ -382,7 +395,7 @@ export class OrganizationService {
       },
     });
 
-    return organizations.map(org => ({
+    return organizations.map((org: any) => ({
       id: org.id,
       name: org.name,
       slug: org.slug,
@@ -428,7 +441,7 @@ export class OrganizationService {
       throw new Error('Organization not found');
     }
 
-    const currentSettings = organization.settings as OrganizationSettings;
+    const currentSettings = organization.settings as unknown as OrganizationSettings;
     const updatedSettings = { ...currentSettings, ...settings };
 
     const updatedOrganization = await this.prisma.organization.update({
@@ -454,6 +467,6 @@ export class OrganizationService {
       throw new Error('Organization not found');
     }
 
-    return organization.settings as OrganizationSettings;
+    return organization.settings as unknown as OrganizationSettings;
   }
 } 

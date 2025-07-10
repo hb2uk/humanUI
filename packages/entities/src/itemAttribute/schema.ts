@@ -1,21 +1,21 @@
 import { z } from 'zod';
 
-// Base itemAttribute schema
+// Base itemAttribute schema - updated to match Prisma types
 export const itemAttributeSchema = z.object({
   id: z.string().cuid().optional(),
   name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
   displayName: z.string().min(1, 'Display name is required').max(255, 'Display name must be less than 255 characters'),
-  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
-  attributeType: z.enum(['string', 'number', 'boolean', 'enum', 'json']),
+  description: z.string().max(1000, 'Description must be less than 1000 characters').nullable(),
+  attributeType: z.string(), // String in Prisma, not enum
   dataType: z.string().max(100, 'Data type must be less than 100 characters'),
   isRequired: z.boolean().default(false),
-  defaultValue: z.any().optional(),
-  validationRules: z.record(z.any()).optional(),
+  defaultValue: z.any().nullable(), // JsonValue in Prisma
+  validationRules: z.any().nullable(), // JsonValue in Prisma
   sortOrder: z.number().min(0).default(0),
   isActive: z.boolean().default(true),
   organizationId: z.string().cuid().min(1, 'Organization is required'),
-  tenantId: z.string().optional(),
-  createdBy: z.string().optional(),
+  tenantId: z.string().nullable(),
+  createdBy: z.string().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });
@@ -35,7 +35,7 @@ export const updateItemAttributeSchema = createItemAttributeSchema.partial().ext
 // ItemAttribute query schema for filtering
 export const itemAttributeQuerySchema = z.object({
   search: z.string().optional(),
-  attributeType: z.enum(['string', 'number', 'boolean', 'enum', 'json']).optional(),
+  attributeType: z.string().optional(), // String in Prisma, not enum
   organizationId: z.string().cuid().optional(),
   isActive: z.boolean().optional(),
   isRequired: z.boolean().optional(),

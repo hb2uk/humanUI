@@ -148,7 +148,7 @@ export const categoryConfig = {
   name: 'category',
   displayName: 'Category',
   description: 'Manage product categories and their hierarchies',
-  path: '/categories',
+  path: 'categories',
   service: CategoryService,
   schemas: {
     base: baseCategorySchema,

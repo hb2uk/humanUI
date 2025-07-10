@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@humanui/db';
 import { ItemAttribute, CreateItemAttribute, UpdateItemAttribute, ItemAttributeQuery, ItemAttributeStats, ItemAttributeBulkOperation, ItemAttributeImportData, ItemAttributeExportData } from './types';
 import { itemAttributeSchema, createItemAttributeSchema, updateItemAttributeSchema, itemAttributeQuerySchema } from './schema';
 
@@ -42,8 +42,19 @@ export class ItemAttributeService {
 
     const itemAttribute = await this.prisma.itemAttribute.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        displayName: validatedData.displayName,
+        description: validatedData.description,
+        attributeType: validatedData.attributeType,
+        dataType: validatedData.dataType,
+        isRequired: validatedData.isRequired,
+        defaultValue: validatedData.defaultValue,
+        validationRules: validatedData.validationRules,
+        sortOrder: validatedData.sortOrder,
+        isActive: validatedData.isActive,
+        organizationId: validatedData.organizationId,
         tenantId: tenantId || null,
+        createdBy: validatedData.createdBy,
       },
     });
 
@@ -263,7 +274,7 @@ export class ItemAttributeService {
     ]);
 
     const attributesByTypeMap: Record<string, number> = {};
-    attributesByType.forEach(group => {
+    attributesByType.forEach((group: any) => {
       attributesByTypeMap[group.attributeType] = group._count.attributeType;
     });
 
@@ -272,7 +283,7 @@ export class ItemAttributeService {
       activeAttributes,
       requiredAttributes,
       attributesByType: attributesByTypeMap,
-      topUsedAttributes: topUsedAttributes.map(attr => ({
+      topUsedAttributes: topUsedAttributes.map((attr: any) => ({
         id: attr.id,
         name: attr.name,
         usageCount: 0, // TODO: Implement usage tracking
@@ -348,15 +359,17 @@ export class ItemAttributeService {
         const itemAttribute = await this.create({
           name: item.name,
           displayName: item.displayName,
-          description: item.description,
+          description: item.description ?? null,
           attributeType: item.attributeType,
           dataType: item.dataType,
           isRequired: item.isRequired ?? false,
-          defaultValue: item.defaultValue,
-          validationRules: item.validationRules,
+          defaultValue: item.defaultValue ?? null,
+          validationRules: item.validationRules ?? null,
           sortOrder: item.sortOrder ?? 0,
           isActive: item.isActive ?? true,
           organizationId,
+          tenantId: tenantId ?? null,
+          createdBy: null,
         }, tenantId);
 
         importedItemAttributes.push(itemAttribute);
@@ -386,7 +399,7 @@ export class ItemAttributeService {
       },
     });
 
-    return itemAttributes.map(attr => ({
+    return itemAttributes.map((attr: any) => ({
       id: attr.id,
       name: attr.name,
       displayName: attr.displayName,
